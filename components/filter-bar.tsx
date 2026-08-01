@@ -8,14 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   CATEGORY_FILTERS,
+  CONSUMPTION_OPTIONS,
   DATE_OPTIONS,
   DURATION_OPTIONS,
+  DURATION_RANGE_LIMITS,
   LANGUAGE_OPTIONS,
   ORDER_OPTIONS,
   VIDEO_TYPE_OPTIONS,
 } from "@/constants/filters";
 import { buildSearchUrl, parseSearchFilters } from "@/features/search/params";
 import { buildSurpriseParams } from "@/features/search/surprise";
+import { collectUserContext, recordSearchQuery, writeUserContextCookie } from "@/lib/user-context";
 import type { SearchFilters } from "@/types/search";
 
 /**
@@ -39,15 +42,54 @@ export function FilterBar() {
     setQuery(filters.q);
   }
 
+  /**
+   * El rango de duración también vive en estado local: cada tecla NO toca
+   * la URL (reescribirla por tecla dispararía una búsqueda nueva y quemaría
+   * cuota). Solo se confirma con Enter o al salir del campo (blur).
+   */
+  const [durationMin, setDurationMin] = useState(filters.durationMin ?? "");
+  const [durationMax, setDurationMax] = useState(filters.durationMax ?? "");
+  const [lastSyncedRange, setLastSyncedRange] = useState(`${filters.durationMin ?? ""}:${filters.durationMax ?? ""}`);
+  const currentRange = `${filters.durationMin ?? ""}:${filters.durationMax ?? ""}`;
+  if (lastSyncedRange !== currentRange) {
+    setLastSyncedRange(currentRange);
+    setDurationMin(filters.durationMin ?? "");
+    setDurationMax(filters.durationMax ?? "");
+  }
+
+  /** Redondea y acota un valor de minutos al rango válido (1–240). */
+  function sanitizeMinutes(raw: string): number | undefined {
+    if (raw === "") return undefined;
+    const value = Math.round(Number(raw));
+    if (!Number.isFinite(value)) return undefined;
+    return Math.min(DURATION_RANGE_LIMITS.max, Math.max(DURATION_RANGE_LIMITS.min, value));
+  }
+
+  function commitRange() {
+    let min = sanitizeMinutes(String(durationMin));
+    let max = sanitizeMinutes(String(durationMax));
+    if (min === undefined && max === undefined) return;
+    // Un rango invertido no debe producir una búsqueda siempre vacía.
+    if (min !== undefined && max !== undefined && min > max) {
+      [min, max] = [max, min];
+    }
+    update({ durationMin: min, durationMax: max });
+  }
+
   function update(partial: Partial<SearchFilters>) {
     router.replace(buildSearchUrl({ ...filters, ...partial }));
   }
 
   function submit() {
-    router.replace(buildSearchUrl({ ...filters, q: query }));
+    recordSearchQuery(query);
+    // Escribir una query nueva es una intención explícita: se sale del modo
+    // sorpresa (si no, la sorpresa se comería el texto que acaba de teclear).
+    const next: SearchFilters = { ...filters, q: query, sorpresa: undefined };
+    router.replace(buildSearchUrl(next));
   }
 
   function surpriseMe() {
+    writeUserContextCookie(collectUserContext());
     router.replace(buildSearchUrl(buildSurpriseParams(filters)));
   }
 
@@ -156,6 +198,73 @@ export function FilterBar() {
             </option>
           ))}
         </Select>
+
+        <Select
+          aria-label="Modo de consumo"
+          value={filters.consumption ?? ""}
+          onChange={(event) =>
+            update({ consumption: (event.target.value || undefined) as SearchFilters["consumption"] })
+          }
+        >
+          <option value="">Cómo lo vas a ver</option>
+          {CONSUMPTION_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+
+        <Button
+          type="button"
+          variant={filters.family ? "default" : "outline"}
+          className="h-9 px-3 text-sm"
+          aria-pressed={filters.family}
+          onClick={() => update({ family: !filters.family })}
+        >
+          👨‍👩‍👧 Apto para toda la familia
+        </Button>
+
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number"
+            inputMode="numeric"
+            aria-label="Duración mínima en minutos"
+            placeholder="Min min"
+            value={durationMin}
+            min={DURATION_RANGE_LIMITS.min}
+            max={DURATION_RANGE_LIMITS.max}
+            onChange={(event) => setDurationMin(event.target.value)}
+            onBlur={commitRange}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitRange();
+              }
+            }}
+            className="h-9 w-24 px-3 text-sm"
+          />
+          <span className="text-sm text-muted-foreground" aria-hidden="true">
+            –
+          </span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            aria-label="Duración máxima en minutos"
+            placeholder="Max min"
+            value={durationMax}
+            min={DURATION_RANGE_LIMITS.min}
+            max={DURATION_RANGE_LIMITS.max}
+            onChange={(event) => setDurationMax(event.target.value)}
+            onBlur={commitRange}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitRange();
+              }
+            }}
+            className="h-9 w-24 px-3 text-sm"
+          />
+        </div>
 
         <Select
           aria-label="Orden"

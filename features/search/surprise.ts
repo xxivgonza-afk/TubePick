@@ -8,8 +8,10 @@ import type { SearchFilters } from "@/types/search";
  * usuario eligió explícitamente. Solo aleatoriza lo que quedó sin decidir
  * (filtro "Cualquiera"): categoría, duración, fecha y orden.
  *
- * El resultado se escribe en la URL como parámetros concretos, así la
- * búsqueda es determinista, compartible y cacheable (no quema cuota extra).
+ * Activa además el modo sorpresa (`sorpresa=1`): el servidor deja que la IA
+ * elija el tema en lugar de usar la frase del usuario. El resultado se
+ * escribe en la URL como parámetros concretos, así la búsqueda es
+ * determinista, compartible y cacheable (no quema cuota extra).
  */
 export function buildSurpriseParams(current: SearchFilters): SearchFilters {
   return {
@@ -18,5 +20,6 @@ export function buildSurpriseParams(current: SearchFilters): SearchFilters {
     duration: current.duration ?? pickRandom(DURATION_FILTERS),
     date: current.date ?? pickRandom(DATE_FILTERS),
     order: current.order ?? pickRandom(ORDER_FILTERS),
+    sorpresa: true,
   };
 }

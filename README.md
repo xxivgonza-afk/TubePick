@@ -2,18 +2,19 @@
 
 Asistente inteligente para descubrir qué ver en YouTube. No es un buscador ni un reproductor: le dices lo que te apetece con tus palabras («quiero algo para comer», «un podcast interesante») y te recomienda videos relevantes que se abren directamente en YouTube.
 
-**Fase 0 (MVP)**: sin login, sin base de datos. Favoritos en `localStorage`, caché de servidor para no agotar la cuota de la API.
+**Fase 0 (MVP)**: sin login, sin base de datos. Favoritos e intereses en `localStorage`, caché de servidor para no agotar la cuota de la API.
 
 ## Requisitos
 
 - Node.js 20+
 - Una clave de la [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com)
+- Una clave de [Google AI Studio](https://aistudio.google.com/apikey) (Gemini Flash, tier gratis, sin tarjeta)
 
 ## Puesta en marcha
 
 ```bash
 npm install
-cp .env.example .env.local   # rellena YOUTUBE_API_KEY
+cp .env.example .env.local   # rellena YOUTUBE_API_KEY y GEMINI_API_KEY
 npm run dev
 ```
 
@@ -21,9 +22,10 @@ npm run dev
 
 Cada búsqueda consume ~101 unidades (search.list = 100 + videos.list = 1). Con el cupo por defecto (10.000 unidades/día) hay presupuesto para ~100 búsquedas frescas. Por eso:
 
-- **Caché en memoria (TTL 12 h)** en el repository (`repositories/youtube.ts` + `services/cache.ts`), transparente al resto de la app.
-- **Data Cache de Next.js** (`next: { revalidate: 43200 }` en los fetch) como capa compartida entre instancias en Vercel.
+- **Caché en memoria (TTL 24 h)** en el repository (`repositories/youtube.ts` + `services/cache.ts`), transparente al resto de la app.
+- **Data Cache de Next.js** (`next: { revalidate: 86400 }` en los fetch) como capa compartida entre instancias en Vercel.
 - La clave de caché normaliza categoría + parámetros, de modo que las búsquedas populares y repetidas (categorías del home, Sorpréndeme) se sirven de caché.
+- Si la cuota se agota, la app degrada con la última caché de cada categoría y avisa al usuario (nunca rompe).
 
 ## Arquitectura (Clean Architecture, Fase 0)
 
@@ -31,23 +33,25 @@ Cada búsqueda consume ~101 unidades (search.list = 100 + videos.list = 1). Con 
 app/             → rutas y páginas (Server Components por defecto; /search es dinámico)
 components/      → UI reutilizable (shadcn-style, client solo donde hay interactividad)
 features/search/ → params (Zod de la URL), sorpréndeme, orquestación server
-services/        → intent-mapper, cliente de YouTube API (Zod), caché TTL
-repositories/    → acceso a datos externos (YouTube API, con caché transparente)
+services/        → intent-ai (Gemini), intent-mapper (fallback de reglas), cliente de YouTube API (Zod), caché TTL
+repositories/    → acceso a datos externos (YouTube API, con caché transparente y relajación de query)
 types/           → tipos compartidos (Video, SearchFilters, NormalizedSearchParams)
-constants/       → categorías, filtros, textos
-lib/ y utils/    → helpers puros (cn, formatos, hash, random)
+constants/       → categorías (con mapeo a videoCategoryId de YouTube), filtros, textos
+lib/ y utils/    → helpers puros (cn, formatos, hash, random, contexto de usuario)
 stores/          → Zustand: SOLO estado de UI (tema, toast)
 hooks/           → useFavorites (localStorage) y utilidades de cliente
 ```
 
-### La capa de intención (`services/intent-mapper.ts`)
+### La capa de intención (`services/intent-ai.ts` + `services/intent-mapper.ts`)
 
-Es la pieza que el MVP debe validar: si interpretar la intención («quiero algo para comer» → `recetas fáciles`, categoría comida) produce mejores resultados que buscar directo en YouTube. Está **aislada del resto del sistema**:
+TODA búsqueda pasa por la capa semántica: **Gemini Flash** (JSON forzado, timeout 1,5 s, caché de 30 días) interpreta la frase del usuario — o genera la frase de exploración cuando llega sin texto o en modo sorpresa. Si Gemini falla (red, timeout o cuota gratuita agotada), `mapIntentByRules` produce el mismo contrato de forma determinística. El usuario nunca ve un error por fallos de la IA; solo si falta `GEMINI_API_KEY` (configuración).
 
 - Entrada: `SearchFilters` (texto libre + filtros explícitos).
 - Salida: `NormalizedSearchParams` (keywords, categoría, duración, idioma, fecha, orden).
 
-En la Fase 2 se reemplaza únicamente la implementación interna de `mapIntent` por una llamada a un modelo de IA con la misma firma; ni la UI, ni el repository ni el resto de la app cambian.
+### Personalización sin login
+
+Los favoritos (`tubepick:favorites`) y el historial de búsquedas (`tubepick:search-history`) viven en `localStorage`. El botón **Sorpréndeme** resume esos intereses en la cookie `tubepick_ctx` (90 días, solo lo imprescindible), que el servidor usa para que Gemini elija un tema sorprendente pero afinado al usuario. Sin cookie: sorpresa genérica.
 
 ### Estado
 
@@ -69,7 +73,7 @@ En la Fase 2 se reemplaza únicamente la implementación interna de `mapIntent` 
 npm run dev        # desarrollo (Turbopack)
 npm run build      # build de producción
 npm run lint       # ESLint
-npm test           # Vitest (38 tests: intent-mapper, sorpréndeme, params, formatos, repository)
+npm test           # Vitest (134 tests: intent-ai, intent-mapper, sorpréndeme, params, repository, user-context, formatos)
 npx tsc --noEmit   # typecheck
 ```
 
@@ -77,12 +81,13 @@ npx tsc --noEmit   # typecheck
 
 - [ ] `NEXT_PUBLIC_SITE_URL` apuntando al dominio real (variable de entorno del proyecto en Vercel, nunca en el repo ni en `.env.local` en producción). Sin esto, el sitemap, los robots y los tags Open Graph apuntan a `http://localhost:3000`.
 - [ ] `YOUTUBE_API_KEY` en Vercel como variable de entorno, usando una clave **nueva y restringida** (restricción de API a YouTube Data API v3 y, si es posible, de referrer HTTP al dominio) — nunca la que se compartió en `.env.local`.
+- [ ] `GEMINI_API_KEY` en Vercel como variable de entorno, también **nueva** (AI Studio → Create API key) por la misma razón.
 - [ ] `npm run lint`, `npx tsc --noEmit` y `npm test` en verde.
-- [ ] Tras el primer despliegue, revisar los logs de Vercel (sin `403 quotaExceeded`).
+- [ ] Tras el primer despliegue, revisar los logs de Vercel (sin `403 quotaExceeded`) y probar una búsqueda real + un Sorpréndeme desde el dominio.
 
 ## Roadmap
 
 - **Fase 1**: Supabase + Prisma + Auth.js (perfil, historial, favoritos en la nube).
-- **Fase 2**: motor de recomendación con IA real (mismo contrato que `mapIntent`), colecciones, listas compartidas, monetización.
+- **Fase 2**: colecciones, listas compartidas, monetización.
 
 No afiliado a YouTube. Los videos siempre se abren en YouTube.

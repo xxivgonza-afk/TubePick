@@ -25,6 +25,12 @@ export interface Category {
   seed: string[];
   /** Términos (normalizados sin acentos) que disparan esta categoría en el intent-mapper. */
   intent: string[];
+  /**
+   * ID de la categoría de YouTube (videoCategoryId). Usado SOLO cuando el
+   * usuario elige la categoría explícitamente, para que el filtro sea real
+   * en la API y no dependa solo de las keywords.
+   */
+  youtubeCategoryId?: number;
 }
 
 export const CATEGORIES: Category[] = [
@@ -48,6 +54,7 @@ export const CATEGORIES: Category[] = [
       "robot",
       "realidad virtual",
     ],
+    youtubeCategoryId: 28,
   },
   {
     id: "ciencia",
@@ -66,6 +73,7 @@ export const CATEGORIES: Category[] = [
       "astronomia",
       "neurociencia",
     ],
+    youtubeCategoryId: 28,
   },
   {
     id: "historia",
@@ -86,6 +94,7 @@ export const CATEGORIES: Category[] = [
       "egipto",
       "roma",
     ],
+    youtubeCategoryId: 27,
   },
   {
     id: "programacion",
@@ -109,6 +118,7 @@ export const CATEGORIES: Category[] = [
       "algoritmo",
       "algoritmos",
     ],
+    youtubeCategoryId: 27,
   },
   {
     id: "humor",
@@ -128,6 +138,7 @@ export const CATEGORIES: Category[] = [
       "meme",
       "memes",
     ],
+    youtubeCategoryId: 23,
   },
   {
     id: "terror",
@@ -146,6 +157,7 @@ export const CATEGORIES: Category[] = [
       "espeluznante",
       "creepy",
     ],
+    youtubeCategoryId: 39,
   },
   {
     id: "podcasts",
@@ -153,6 +165,7 @@ export const CATEGORIES: Category[] = [
     emoji: "🎧",
     seed: ["podcasts"],
     intent: ["podcast", "podcasts"],
+    youtubeCategoryId: 24,
   },
   {
     id: "documentales",
@@ -160,6 +173,7 @@ export const CATEGORIES: Category[] = [
     emoji: "🎬",
     seed: ["documentales"],
     intent: ["documental", "documentales", "natgeo", "nature"],
+    youtubeCategoryId: 35,
   },
   {
     id: "economia",
@@ -178,6 +192,7 @@ export const CATEGORIES: Category[] = [
       "criptomonedas",
       "ahorrar",
     ],
+    youtubeCategoryId: 27,
   },
   {
     id: "gaming",
@@ -199,6 +214,7 @@ export const CATEGORIES: Category[] = [
       "league of legends",
       "mario",
     ],
+    youtubeCategoryId: 20,
   },
   {
     id: "musica",
@@ -216,6 +232,7 @@ export const CATEGORIES: Category[] = [
       "concierto",
       "conciertos",
     ],
+    youtubeCategoryId: 10,
   },
   {
     id: "anime",
@@ -223,6 +240,7 @@ export const CATEGORIES: Category[] = [
     emoji: "🎌",
     seed: ["anime"],
     intent: ["anime", "animes", "manga", "one piece", "naruto", "dragon ball"],
+    youtubeCategoryId: 1,
   },
   {
     id: "comida",
@@ -246,6 +264,7 @@ export const CATEGORIES: Category[] = [
       "restaurante",
       "chef",
     ],
+    youtubeCategoryId: 26,
   },
   {
     id: "deportes",
@@ -268,6 +287,7 @@ export const CATEGORIES: Category[] = [
       "natacion",
       "atletismo",
     ],
+    youtubeCategoryId: 17,
   },
 ];
 
@@ -277,4 +297,9 @@ export function getCategory(id: CategoryId | undefined | null): Category | undef
 
 export function getCategoryLabel(id: CategoryId): string {
   return getCategory(id)?.label ?? id;
+}
+
+/** ID de categoría de YouTube, para que el filtro de categoría sea real en la API. */
+export function getCategoryYouTubeId(id: CategoryId | undefined | null): number | undefined {
+  return getCategory(id)?.youtubeCategoryId;
 }

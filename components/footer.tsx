@@ -9,6 +9,10 @@ export function Footer() {
           {SITE_NAME} — descubre qué ver en YouTube, sin buscar.
           <Heart className="size-3 text-brand" aria-hidden="true" />
         </p>
+        <p>
+          Tus favoritos e intereses se guardan solo en tu navegador. La única cookie de TubePick
+          (90 días) resume esos intereses para personalizar el botón Sorpréndeme.
+        </p>
         <p>No afiliado a YouTube. Los videos se abren siempre en YouTube.</p>
       </div>
     </footer>

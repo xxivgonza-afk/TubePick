@@ -300,7 +300,7 @@ describe("searchVideos (repository)", () => {
     expect(longs.videos.map((v) => v.id)).toEqual(["video-1"]);
   });
 
-  it("el fallback por cuota aplica el videoType pedido aunque cambie respecto al cacheado", async () => {
+  it("el fallback por cuota NO sirve datos cacheados de otro videoType (evita contaminar)", async () => {
     const mock = mockSuccessfulApi();
     mock.mockImplementation(async ({ path }) => {
       if (path === "search") {
@@ -337,9 +337,20 @@ describe("searchVideos (repository)", () => {
       new YouTubeApiError("quota", "Se agotó la cuota diaria de la API de YouTube.")
     );
 
-    const { videos, fromFallback } = await repository.searchVideos({ ...base, videoType: "short" });
+    // Con videoType distinto, la caché de categoría no aplica: propaga el error.
+    await expect(repository.searchVideos({ ...base, videoType: "short" })).rejects.toThrow(
+      "Se agotó la cuota diaria"
+    );
+
+    // Con el mismo videoType (y otra query), el fallback sí sirve la caché
+    // y aplica el filtro de shorts al leerla.
+    const { videos, fromFallback } = await repository.searchVideos({
+      ...base,
+      keywords: ["terror alternativo"],
+      videoType: "video",
+    });
     expect(fromFallback).toBe(true);
-    expect(videos.map((v) => v.id)).toEqual(["video-2"]);
+    expect(videos.map((v) => v.id)).toEqual(["video-1"]);
   });
 
   it("cuenta como short un video de <= 3 min con tag #shorts", async () => {
@@ -380,5 +391,329 @@ describe("searchVideos (repository)", () => {
     const { videos } = await repository.searchVideos(params);
     expect(videos).toHaveLength(1);
     expect(videos[0].id).toBe("video-1");
+  });
+
+  it("excluye contenido infantil por defecto cuando el usuario no pide familia", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            {
+              id: { videoId: "video-2" },
+              snippet: {
+                ...searchItems[0].snippet,
+                title: "Canta con los bebés: canciones infantiles",
+              },
+            },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: { ...searchItems[0].snippet, title: "Canta con los bebés: canciones infantiles" },
+            contentDetails: { duration: "PT5M" },
+            statistics: { viewCount: "50" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["musica"],
+      category: "musica",
+      order: "relevance",
+      maxResults: 24,
+      excludeChildContent: true,
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+  });
+
+  it("sin excludeChildContent no toca los resultados (familia explícita)", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            {
+              id: { videoId: "video-2" },
+              snippet: {
+                ...searchItems[0].snippet,
+                title: "Canta con los bebés: canciones infantiles",
+              },
+            },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: { ...searchItems[0].snippet, title: "Canta con los bebés: canciones infantiles" },
+            contentDetails: { duration: "PT5M" },
+            statistics: { viewCount: "50" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["musica"],
+      category: "musica",
+      order: "relevance",
+      maxResults: 24,
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(2);
+  });
+
+  it("aplica el rango de duración personalizado post-captura", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            { id: { videoId: "video-2" }, snippet: searchItems[0].snippet },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0], // 10 min 30 s
+          {
+            id: "video-2",
+            snippet: searchItems[0].snippet,
+            contentDetails: { duration: "PT2M" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["gta"],
+      category: "gaming",
+      order: "relevance",
+      maxResults: 24,
+      durationMinSeconds: 300,
+      durationMaxSeconds: 900,
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+  });
+
+  it("con videoType='live' pide eventType=live a la API", async () => {
+    await repository.searchVideos({
+      keywords: ["gta"],
+      category: "gaming",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "live",
+    });
+    const searchCall = vi.mocked(callYouTubeApi).mock.calls.find(([options]) => options.path === "search");
+    expect(searchCall?.[0].params.eventType).toBe("live");
+  });
+
+  it("envía videoCategoryId a la API cuando el filtro de categoría está explícito", async () => {
+    await repository.searchVideos({
+      keywords: ["recetas fáciles"],
+      category: "comida",
+      videoCategoryId: 26,
+      order: "relevance",
+      maxResults: 24,
+    });
+    const searchCall = vi.mocked(callYouTubeApi).mock.calls.find(([options]) => options.path === "search");
+    expect(searchCall?.[0].params.videoCategoryId).toBe(26);
+  });
+
+  it("no envía videoDuration cuando videoType='live' (los directos duran horas)", async () => {
+    await repository.searchVideos({
+      keywords: ["gta"],
+      category: "gaming",
+      duration: "short",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "live",
+    });
+    const searchCall = vi.mocked(callYouTubeApi).mock.calls.find(([options]) => options.path === "search");
+    expect(searchCall?.[0].params.videoDuration).toBeUndefined();
+    expect(searchCall?.[0].params.eventType).toBe("live");
+  });
+
+  it("si la categoría de YouTube vacía los resultados, relaja soltándola", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path, params }) => {
+      if (path === "search") {
+        const category = String(params.videoCategoryId ?? "");
+        if (category === "23") return { items: [] }; // humor: sin resultados
+        return { items: [{ id: { videoId: "video-1" }, snippet: searchItems[0].snippet }] };
+      }
+      return { items: [videoItems[0]] };
+    });
+
+    const { videos, relaxed } = await repository.searchVideos({
+      keywords: ["sketch"],
+      category: "humor",
+      videoCategoryId: 23,
+      order: "relevance",
+      maxResults: 24,
+    });
+    expect(relaxed).toBe(true);
+    expect(videos).toHaveLength(1);
+    // La variante relajada pidió a la API sin videoCategoryId.
+    const calls = mock.mock.calls
+      .filter(([options]) => options.path === "search")
+      .map(([options]) => options.params.videoCategoryId);
+    expect(calls).toContain(23);
+    expect(calls).toContain(undefined);
+  });
+
+  it("excluye por palabra con stemming y sin acentos (sin falsos positivos)", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            {
+              id: { videoId: "video-2" },
+              snippet: { ...searchItems[0].snippet, title: "Casablanca, la película" },
+            },
+            {
+              id: { videoId: "video-3" },
+              snippet: { ...searchItems[0].snippet, title: "Los fantasmas del castillo" },
+            },
+            {
+              id: { videoId: "video-4" },
+              snippet: { ...searchItems[0].snippet, channelTitle: "El Niño Robot" },
+            },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: { ...searchItems[0].snippet, title: "Casablanca, la película" },
+            contentDetails: { duration: "PT1H40M" },
+            statistics: { viewCount: "1" },
+          },
+          {
+            id: "video-3",
+            snippet: { ...searchItems[0].snippet, title: "Los fantasmas del castillo" },
+            contentDetails: { duration: "PT5M" },
+            statistics: { viewCount: "2" },
+          },
+          {
+            id: "video-4",
+            snippet: { ...searchItems[0].snippet, channelTitle: "El Niño Robot" },
+            contentDetails: { duration: "PT5M" },
+            statistics: { viewCount: "3" },
+          },
+        ],
+      };
+    });
+
+    const { videos } = await repository.searchVideos({
+      keywords: ["terror", "-casas", "-fantasma", "-nino"],
+      category: "terror",
+      order: "relevance",
+      maxResults: 24,
+    });
+    // "Casablanca" NO matchea "casas" (queda); "fantasmas" matchea
+    // "fantasma"; "nino" (sin acento) matchea "Niño".
+    expect(videos.map((v) => v.id)).toEqual(["video-1", "video-2"]);
+  });
+
+  it("si la consulta estricta queda vacía, relaja la query y devuelve resultados", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path, params }) => {
+      if (path === "search") {
+        const q = String(params.q ?? "");
+        if (q.includes("-kids")) return { items: [] }; // query sobreexigida: vacía
+        return { items: [{ id: { videoId: "video-1" }, snippet: searchItems[0].snippet }] };
+      }
+      return { items: [videoItems[0]] };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["vlog de viajes", "-luisito comunica", "-clavero", "-kids", "-niños"],
+      category: "documentales",
+      order: "relevance",
+      maxResults: 24,
+      excludeChildContent: true,
+    };
+
+    const { videos, relaxed } = await repository.searchVideos(params);
+    expect(relaxed).toBe(true);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+
+    // El reintento quitó SOLO las exclusiones automáticas infantiles:
+    // las del usuario ("que no sean ellos") se conservan en la query.
+    const relaxedCalls = mock.mock.calls
+      .filter(([options]) => options.path === "search")
+      .map(([options]) => String(options.params.q ?? ""))
+      .filter((q) => !q.includes("-kids"));
+    expect(relaxedCalls).toHaveLength(1);
+    expect(relaxedCalls[0]).toContain("-luisito comunica");
+    expect(relaxedCalls[0]).toContain("-clavero");
+  });
+
+  it("si ni relajando hay resultados, devuelve vacío sin error", async () => {
+    mockSuccessfulApi().mockImplementation(async ({ path }) => {
+      return path === "search" ? { items: [] } : { items: [] };
+    });
+
+    const { videos, relaxed } = await repository.searchVideos({
+      keywords: ["zzzzz"],
+      category: null,
+      order: "relevance",
+      maxResults: 24,
+    });
+    expect(videos).toHaveLength(0);
+    expect(relaxed).toBeUndefined();
+  });
+
+  it("las variantes relajadas usan su propia caché (no rellaman a la API)", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path, params }) => {
+      if (path === "search") {
+        const q = String(params.q ?? "");
+        if (q.includes("-kids")) return { items: [] };
+        return { items: [{ id: { videoId: "video-1" }, snippet: searchItems[0].snippet }] };
+      }
+      return { items: [videoItems[0]] };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["vlog de viajes", "-kids", "-niños"],
+      category: "documentales",
+      order: "relevance",
+      maxResults: 24,
+      excludeChildContent: true,
+    };
+
+    await repository.searchVideos(params);
+    const callsAfterFirst = vi.mocked(callYouTubeApi).mock.calls.length;
+
+    const second = await repository.searchVideos(params);
+    expect(second.relaxed).toBe(true);
+    expect(second.videos).toHaveLength(1);
+    expect(vi.mocked(callYouTubeApi).mock.calls.length).toBe(callsAfterFirst);
   });
 });

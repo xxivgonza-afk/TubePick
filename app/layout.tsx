@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toast } from "@/components/toast";
+import { VisitTracker } from "@/components/visit-tracker";
 import { SITE_NAME, SITE_TAGLINE } from "@/constants/site";
 
 const inter = Inter({
@@ -60,6 +61,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <Footer />
           <Toast />
+          <VisitTracker />
         </ThemeProvider>
       </body>
     </html>

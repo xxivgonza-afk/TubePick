@@ -1,17 +1,20 @@
-import { CATEGORIES, type Category, type CategoryId } from "@/constants/categories";
+import { CATEGORIES, getCategoryYouTubeId, type Category, type CategoryId } from "@/constants/categories";
 import { publishedAfterIso } from "@/utils/format";
 import type { NormalizedSearchParams, SearchFilters } from "@/types/search";
 
 /**
  * ============================================================
- *  CAPA DE INTERPRETACIÓN DE INTENCIÓN (Fase 0: motor de reglas)
+ *  CAPA DE INTERPRETACIÓN DE INTENCIÓN (fallback determinístico)
  * ============================================================
  *
  * Traduce texto libre en lenguaje natural ("quiero algo para comer",
  * "un podcast interesante") a parámetros estructurados de búsqueda:
  * keywords, categoría, duración, idioma, orden y fecha.
  *
- * V2 del motor:
+ * Es el FALLBACK del motor semántico (services/intent-ai.ts). Cuando la
+ * IA no está disponible (timeout, error de red o cuota gratuita de Gemini
+ * agotada), el orquestador degrada silenciosamente a `mapIntentByRules`,
+ * que implementa la V2 del motor de reglas:
  *  - Negaciones: "no quiero / sin / que no sea / excepto / evita…"
  *    extrae los términos excluidos y los pasa a la query como
  *    `-término` (operador NOT que YouTube soporta), evitando además
@@ -21,11 +24,9 @@ import type { NormalizedSearchParams, SearchFilters } from "@/types/search";
  *    términos de otras categorías se conservan como keywords
  *    ("documental de historia" -> categoría documentales + "historia").
  *
- * Es la pieza que la Fase 2 debe validar: si estas reglas producen mejores
- * resultados que buscar directo en YouTube, el producto tiene sentido.
- * La Fase 2 reemplazará ÚNICAMENTE la implementación interna de `mapIntent`
- * por una llamada a un modelo de IA con la misma firma — ni la UI, ni el
- * repository, ni el resto de la app necesitarán cambios.
+ * La Fase 2 consolida esta capa: si la IA produce mejores resultados que
+ * estas reglas, el producto tiene sentido. El contrato es `ResolvedIntent`
+ * (types/intent.ts) y la sustitución es transparente para UI y repository.
  *
  * Esta función es pura (sin I/O) y corre en el servidor.
  * ============================================================
@@ -181,6 +182,49 @@ const GENERIC_INTENT_TERMS = new Set([
   "cantar",
   "bailar",
 ]);
+
+/**
+ * Señales (normalizadas sin acentos) de que el usuario busca contenido
+ * para niños/familia. El fallback por reglas lo usa para no excluir
+ * contenido infantil cuando la intención lo pide explícitamente.
+ */
+const FAMILY_HINTS = [
+  "para mi hijo",
+  "para mi hija",
+  "para mis hijos",
+  "para mis hijas",
+  "mi hijo",
+  "mi hija",
+  "mis hijos",
+  "mis hijas",
+  "nino",
+  "nina",
+  "ninos",
+  "ninas",
+  "bebe",
+  "bebes",
+  "infantil",
+  "infantiles",
+  "kids",
+  "kindergarten",
+  "toddler",
+  "toddlers",
+  "preescolar",
+  "guarderia",
+  "cocomelon",
+  "dibujos animados",
+  "caricaturas",
+];
+
+/**
+ * Detecta si la consulta pide contenido familiar/infantil. Se usa para que
+ * el filtro de seguridad por defecto (excluir contenido infantil) no castigue
+ * búsquedas legítimas como "algo para mi hijo de 5 años".
+ */
+export function detectFamilyRequest(text: string): boolean {
+  const normalized = normalizeText(text);
+  return FAMILY_HINTS.some((hint) => containsWord(normalized, hint));
+}
 
 /** Normaliza: minúsculas + sin acentos. */
 export function normalizeText(text: string): string {
@@ -377,12 +421,19 @@ function detectLanguage(text: string): "es" | "en" | undefined {
 
 const DATE_DAYS: Record<string, number> = { week: 7, month: 30, year: 365 };
 
+/** Convierte el filtro de fecha de la URL en la fecha ISO mínima de publicación. */
+export function publishedAfterFromFilters(filters: SearchFilters): string | undefined {
+  return filters.date && filters.date in DATE_DAYS
+    ? publishedAfterIso(DATE_DAYS[filters.date])
+    : undefined;
+}
+
 /**
  * Traduce la intención del usuario a parámetros estructurados de búsqueda.
  * Los filtros explícitos de la UI tienen prioridad; el mapper solo infiere
- * lo que el usuario no ha decidido.
+ * lo que el usuario no ha decidido. Fallback determinístico de la IA.
  */
-export function mapIntent(filters: SearchFilters): NormalizedSearchParams {
+export function mapIntentByRules(filters: SearchFilters): NormalizedSearchParams {
   const text = normalizeText(filters.q);
   const { cleaned, excluded } = extractNegations(text);
 
@@ -411,20 +462,33 @@ export function mapIntent(filters: SearchFilters): NormalizedSearchParams {
   const language: NormalizedSearchParams["language"] | undefined =
     filters.language === "both" ? inferredLanguage : filters.language;
 
-  const publishedAfter =
-    filters.date && filters.date in DATE_DAYS
-      ? publishedAfterIso(DATE_DAYS[filters.date])
-      : undefined;
+  const publishedAfter = publishedAfterFromFilters(filters);
+
+  const { durationMinSeconds, durationMaxSeconds } = durationRangeFromFilters(filters);
 
   return {
     keywords: effectiveKeywords,
     category: category?.id ?? null,
+    videoCategoryId: getCategoryYouTubeId(filters.category),
     duration,
+    durationMinSeconds,
+    durationMaxSeconds,
     language,
     publishedAfter,
     order,
     maxResults: 24,
     videoType: filters.videoType,
+  };
+}
+
+/** Convierte el rango en minutos de la URL a segundos (o deja undefined). */
+export function durationRangeFromFilters(filters: SearchFilters): {
+  durationMinSeconds?: number;
+  durationMaxSeconds?: number;
+} {
+  return {
+    durationMinSeconds: filters.durationMin ? filters.durationMin * 60 : undefined,
+    durationMaxSeconds: filters.durationMax ? filters.durationMax * 60 : undefined,
   };
 }
 

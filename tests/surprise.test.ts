@@ -30,6 +30,11 @@ describe("buildSurpriseParams", () => {
     expect(result.category).toBeDefined();
   });
 
+  it("activa siempre el modo sorpresa (la IA elige el tema)", () => {
+    expect(buildSurpriseParams(base).sorpresa).toBe(true);
+    expect(buildSurpriseParams({ ...base, q: "algo" }).sorpresa).toBe(true);
+  });
+
   it("es determinista sobre filtros explícitos", () => {
     const fixed: SearchFilters = { ...base, category: "deportes", date: "year" };
     const a = buildSurpriseParams(fixed);

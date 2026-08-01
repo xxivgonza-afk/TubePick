@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { VIDEO_TYPE_OPTIONS } from "@/constants/filters";
 import { buildSearchUrl } from "@/features/search/params";
 import { buildSurpriseParams } from "@/features/search/surprise";
+import { collectUserContext, recordSearchQuery, writeUserContextCookie } from "@/lib/user-context";
 import type { SearchFilters } from "@/types/search";
 
 interface SearchFormProps {
@@ -23,10 +24,12 @@ export function SearchForm({ placeholder }: SearchFormProps) {
   const [videoType, setVideoType] = useState<SearchFilters["videoType"]>("all");
 
   function submit() {
+    recordSearchQuery(query);
     router.push(buildSearchUrl({ ...DEFAULT_FILTERS, q: query, videoType }));
   }
 
   function surpriseMe() {
+    writeUserContextCookie(collectUserContext());
     const params = buildSurpriseParams({ ...DEFAULT_FILTERS, q: query, videoType });
     router.push(buildSearchUrl(params));
   }

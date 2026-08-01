@@ -1,12 +1,16 @@
 import { AlertTriangle, Info, RefreshCw, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { VideoGrid } from "@/components/video-grid";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { SurpriseLink } from "@/components/surprise-link";
 import { getCategory } from "@/constants/categories";
+import { USER_CONTEXT_COOKIE } from "@/constants/site";
 import { searchVideos } from "@/features/search/search-videos";
 import { buildSearchUrl } from "@/features/search/params";
 import { buildSurpriseParams } from "@/features/search/surprise";
+import { parseUserContextCookie } from "@/lib/user-context";
 import type { SearchFilters } from "@/types/search";
 
 interface SearchResultsProps {
@@ -14,7 +18,12 @@ interface SearchResultsProps {
 }
 
 export async function SearchResults({ filters }: SearchResultsProps) {
-  const outcome = await searchVideos(filters);
+  const cookieStore = await cookies();
+  const userContext = parseUserContextCookie(cookieStore.get(USER_CONTEXT_COOKIE)?.value);
+  const outcome = await searchVideos(filters, {
+    userTerms: userContext.terms,
+    visits: userContext.visits,
+  });
 
   if (outcome.error) {
     return (
@@ -25,11 +34,28 @@ export async function SearchResults({ filters }: SearchResultsProps) {
         <AlertTriangle className="size-8 text-destructive" aria-hidden="true" />
         <p className="max-w-md text-sm text-muted-foreground">{outcome.error.message}</p>
         {outcome.error.kind === "config" ? (
-          <p className="max-w-md text-xs text-muted-foreground">
-            Crea una clave en Google Cloud Console (YouTube Data API v3) y añádela a{" "}
-            <code className="rounded bg-muted px-1 py-0.5">.env.local</code> como{" "}
-            <code className="rounded bg-muted px-1 py-0.5">YOUTUBE_API_KEY</code>.
-          </p>
+          outcome.error.configKey === "gemini" ? (
+            <p className="max-w-md text-xs text-muted-foreground">
+              Crea una clave <strong>gratis</strong> en{" "}
+              <a
+                href="https://aistudio.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                Google AI Studio
+              </a>{" "}
+              (modelo Gemini Flash, sin tarjeta) y añádela a{" "}
+              <code className="rounded bg-muted px-1 py-0.5">.env.local</code> como{" "}
+              <code className="rounded bg-muted px-1 py-0.5">GEMINI_API_KEY</code>.
+            </p>
+          ) : (
+            <p className="max-w-md text-xs text-muted-foreground">
+              Crea una clave en Google Cloud Console (YouTube Data API v3) y añádela a{" "}
+              <code className="rounded bg-muted px-1 py-0.5">.env.local</code> como{" "}
+              <code className="rounded bg-muted px-1 py-0.5">YOUTUBE_API_KEY</code>.
+            </p>
+          )
         ) : null}
         <a
           href={buildSearchUrl(filters)}
@@ -49,7 +75,16 @@ export async function SearchResults({ filters }: SearchResultsProps) {
     <>
       <header className="mb-6 flex flex-wrap items-center gap-2">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          {hasQuery ? (
+          {filters.sorpresa ? (
+            <>
+              ✨ Sorpréndeme
+              {outcome.surpriseTopic ? (
+                <span className="mt-1 block text-sm font-normal text-muted-foreground">
+                  Hoy te toca: <span className="text-foreground">«{outcome.surpriseTopic}»</span>
+                </span>
+              ) : null}
+            </>
+          ) : hasQuery ? (
             <>
               Resultados para <span className="text-foreground">«{outcome.displayQuery}»</span>
             </>
@@ -62,6 +97,12 @@ export async function SearchResults({ filters }: SearchResultsProps) {
         {category ? (
           <Badge variant="secondary" className="ml-1">
             <span aria-hidden="true">{category.emoji}</span> {category.label}
+          </Badge>
+        ) : null}
+        {outcome.intentSource === "ai" ? (
+          <Badge variant="outline" className="ml-1 gap-1 border-primary/30 text-primary">
+            <Sparkles className="size-3" aria-hidden="true" />
+            Entendido con IA
           </Badge>
         ) : null}
         <span className="ml-auto text-sm text-muted-foreground">
@@ -78,6 +119,13 @@ export async function SearchResults({ filters }: SearchResultsProps) {
         </div>
       ) : null}
 
+      {outcome.relaxed ? (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-2.5 text-sm text-muted-foreground">
+          <Info className="size-4 shrink-0" aria-hidden="true" />
+          Tu búsqueda era demasiado específica: te mostramos resultados cercanos con menos restricciones.
+        </div>
+      ) : null}
+
       {outcome.videos.length > 0 ? (
         <VideoGrid videos={outcome.videos} />
       ) : (
@@ -87,13 +135,7 @@ export async function SearchResults({ filters }: SearchResultsProps) {
             Prueba con otras palabras, cambia los filtros o déjate sorprender.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link
-              href={buildSearchUrl(buildSurpriseParams(filters))}
-              className={buttonVariants()}
-            >
-              <Sparkles className="size-4" aria-hidden="true" />
-              Sorpréndeme
-            </Link>
+            <SurpriseLink href={buildSearchUrl(buildSurpriseParams(filters))} />
             <Link
               href={buildSearchUrl({ q: filters.q, language: "both" })}
               className={buttonVariants({ variant: "outline" })}
