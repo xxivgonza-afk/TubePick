@@ -58,11 +58,17 @@ export function SearchForm({ placeholder }: SearchFormProps) {
           aria-describedby="search-hint"
         />
         <div className="flex gap-3">
-          <Button type="submit" size="lg" className="flex-1 sm:flex-none">
+          <Button type="submit" size="lg" className="flex-1 whitespace-nowrap px-4 sm:flex-none sm:px-6">
             <Search className="size-4" aria-hidden="true" />
             Buscar
           </Button>
-          <Button type="button" variant="outline" size="lg" onClick={surpriseMe} className="flex-1 sm:flex-none">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={surpriseMe}
+            className="flex-1 whitespace-nowrap px-4 sm:flex-none sm:px-6"
+          >
             <Sparkles className="size-4" aria-hidden="true" />
             Sorpréndeme
           </Button>
