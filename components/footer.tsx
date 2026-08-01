@@ -1,5 +1,6 @@
 import { Heart } from "lucide-react";
 import { SITE_NAME } from "@/constants/site";
+import { KO_FI_URL } from "@/constants/site";
 
 export function Footer() {
   return (
@@ -8,6 +9,18 @@ export function Footer() {
         <p className="flex items-center gap-1">
           {SITE_NAME} — descubre qué ver en YouTube, sin buscar.
           <Heart className="size-3 text-brand" aria-hidden="true" />
+        </p>
+        <p>
+          ¿Te gusta {SITE_NAME}?{" "}
+          <a
+            href={KO_FI_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground underline underline-offset-2 hover:text-brand"
+          >
+            Invítame un café
+          </a>
+          . Es opcional: no condiciona ninguna función.
         </p>
         <p>
           Tus favoritos e intereses se guardan solo en tu navegador. La única cookie de TubePick
