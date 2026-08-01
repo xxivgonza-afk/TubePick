@@ -4,6 +4,7 @@ import type {
   DurationFilter,
   LanguageFilter,
   OrderFilter,
+  VideoTypeFilter,
 } from "@/constants/filters";
 import type { Video } from "@/types/video";
 
@@ -15,6 +16,7 @@ export interface SearchFilters {
   language: LanguageFilter;
   date?: DateFilter;
   order?: OrderFilter;
+  videoType?: VideoTypeFilter;
 }
 
 /** Parámetros de búsqueda ya interpretados, listos para el repository de YouTube. */
@@ -26,6 +28,7 @@ export interface NormalizedSearchParams {
   publishedAfter?: string;
   order: "relevance" | "viewCount" | "date";
   maxResults: number;
+  videoType?: VideoTypeFilter;
 }
 
 export type SearchErrorKind = "config" | "quota" | "api" | "network";

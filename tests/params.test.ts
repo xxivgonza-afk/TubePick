@@ -15,6 +15,7 @@ describe("parseSearchFilters", () => {
       language: "es",
       date: "month",
       order: "views",
+      videoType: "video",
     });
     expect(filters).toEqual({
       q: "algo divertido",
@@ -23,7 +24,13 @@ describe("parseSearchFilters", () => {
       language: "es",
       date: "month",
       order: "views",
+      videoType: "video",
     });
+  });
+
+  it("descarta un videoType inválido", () => {
+    expect(parseSearchFilters({ videoType: "pelicula" }).videoType).toBeUndefined();
+    expect(parseSearchFilters({ videoType: "short" }).videoType).toBe("short");
   });
 
   it("descarta valores inválidos y toma el primer valor de arrays", () => {
@@ -58,8 +65,13 @@ describe("buildSearchUrl", () => {
       language: "es",
       date: "week",
       order: "newest",
+      videoType: "short",
     });
-    expect(url).toBe("/search?q=quiero+algo+para+comer&category=comida&duration=short&language=es&date=week&order=newest");
+    expect(url).toBe("/search?q=quiero+algo+para+comer&category=comida&duration=short&language=es&date=week&order=newest&videoType=short");
+  });
+
+  it("omite videoType 'all' de la URL", () => {
+    expect(buildSearchUrl({ q: "gta", language: "both", videoType: "all" })).toBe("/search?q=gta");
   });
 
   it("round-trip: parse(build(filters)) == filters", () => {
@@ -70,6 +82,7 @@ describe("buildSearchUrl", () => {
       language: "both" as const,
       date: "year" as const,
       order: "views" as const,
+      videoType: "video" as const,
     };
     const url = buildSearchUrl(filters);
     expect(parseSearchFilters(Object.fromEntries(new URLSearchParams(url.split("?")[1] ?? "")))).toEqual(filters);

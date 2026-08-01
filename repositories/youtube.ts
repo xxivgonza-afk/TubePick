@@ -25,8 +25,11 @@ const searchCache = new TtlCache<Video[]>(CACHE_TTL_MS);
 
 /**
  * Caché de respaldo por categoría: guarda la última búsqueda exitosa de cada
- * categoría (sin importar las keywords exactas). Si la cuota diaria se agota,
- * sirve esta caché como degradación en vez de un error duro para todos.
+ * categoría en su forma CRUDA (sin filtros de exclusions/videoType aplicados).
+ * Si la cuota diaria se agota, sirve esta caché como degradación y aplica los
+ * filtros al leer. Almacenarla cruda es clave: la clave solo distingue
+ * categoría+idioma, así que la misma entrada debe poder servir a cualquier
+ * combinación de videoType o exclusiones del usuario.
  */
 const categoryCache = new TtlCache<Video[]>(CACHE_TTL_MS);
 
@@ -39,12 +42,79 @@ function buildCacheKey(params: NormalizedSearchParams): string {
     publishedAfter: params.publishedAfter,
     order: params.order,
     maxResults: params.maxResults,
+    videoType: params.videoType,
   });
   return hashKey(`videos:${canonical}`);
 }
 
 function buildCategoryCacheKey(params: NormalizedSearchParams): string {
   return hashKey(`category:${params.category ?? "any"}:${params.language ?? "any"}`);
+}
+
+/** Términos excluidos por el usuario ("-fantasmas") presentes en las keywords. */
+function extractExcludedTerms(params: NormalizedSearchParams): string[] {
+  return params.keywords
+    .filter((keyword) => keyword.startsWith("-"))
+    .map((keyword) => keyword.slice(1))
+    .filter((term) => term.length > 0);
+}
+
+/**
+ * Aplica los filtros del usuario a un lote crudo de videos: primero las
+ * exclusiones, luego el tipo de contenido (shorts/videos). Se usa tanto al
+ * servir caché como al servir datos frescos, para que todos los caminos
+ * (fresh, searchCache, categoryCache) devuelvan el mismo contrato.
+ */
+function applyUserFilters(videos: Video[], params: NormalizedSearchParams): Video[] {
+  return applyVideoTypeFilter(applyExclusions(videos, extractExcludedTerms(params)), params.videoType);
+}
+
+/** Stemming básico de español: reduce plurales a su raíz ("fantasmas" -> "fantasma"). */
+function stemSpanish(word: string): string {
+  const w = word.toLowerCase();
+  if (w.length > 5 && w.endsWith("es")) return w.slice(0, -2);
+  if (w.length > 4 && w.endsWith("s")) return w.slice(0, -1);
+  return w;
+}
+
+/**
+ * Filtro post-captura de exclusiones: YouTube trata el operador NOT de la
+ * query como una señal blanda, así que descartamos aquí los videos cuyo
+ * título o canal contengan un término que el usuario pidió excluir.
+ */
+function applyExclusions(videos: Video[], excludedTerms: string[]): Video[] {
+  if (excludedTerms.length === 0) return videos;
+  const stems = excludedTerms.map(stemSpanish);
+  return videos.filter(
+    (video) =>
+      !stems.some(
+        (term) =>
+          video.title.toLowerCase().includes(term) ||
+          video.channelTitle.toLowerCase().includes(term)
+      )
+  );
+}
+
+/**
+ * Detección de shorts: la API no expone el tipo de contenido y sus
+ * thumbnails son 480x360 incluso para shorts. La señal empírica fiable es
+ * la duración: los shorts son videos verticales de ≤ 60 s (medido contra
+ * resultados reales, el rango 60-180 s aparece vacío). Como red de
+ * seguridad, un video de ≤ 3 min con el tag #shorts también cuenta.
+ */
+function isShort(video: Video): boolean {
+  if (video.durationSeconds > 0 && video.durationSeconds <= 60) return true;
+  if (video.durationSeconds > 180) return false;
+  return /#shorts/i.test(`${video.title} ${video.description}`);
+}
+
+/**
+ * Filtra por tipo de contenido pedido por el usuario. La búsqueda siempre
+ * trae una mezcla de videos y shorts; aquí se queda solo lo que pidió.
+ */
+function applyVideoTypeFilter(videos: Video[], videoType: NormalizedSearchParams["videoType"]): Video[] {
+  if (!videoType || videoType === "all") return videos;
+  return videos.filter((video) => (videoType === "short" ? isShort(video) : !isShort(video)));
 }
 
 function mapVideo(item: VideoListItem): Video {
@@ -81,17 +151,21 @@ export interface VideoSearchResult {
 export async function searchVideos(params: NormalizedSearchParams): Promise<VideoSearchResult> {
   const cacheKey = buildCacheKey(params);
   const cached = searchCache.get(cacheKey);
-  if (cached) return { videos: cached };
+  if (cached) {
+    return { videos: applyUserFilters(cached, params) };
+  }
 
   try {
-    const videos = await fetchFreshVideos(params);
-    searchCache.set(cacheKey, videos);
-    categoryCache.set(buildCategoryCacheKey(params), videos);
-    return { videos };
+    const raw = await fetchFreshVideos(params);
+    searchCache.set(cacheKey, raw);
+    categoryCache.set(buildCategoryCacheKey(params), raw);
+    return { videos: applyUserFilters(raw, params) };
   } catch (error) {
     if (error instanceof YouTubeApiError && error.kind === "quota") {
       const fallback = categoryCache.get(buildCategoryCacheKey(params));
-      if (fallback) return { videos: fallback, fromFallback: true };
+      if (fallback) {
+        return { videos: applyUserFilters(fallback, params), fromFallback: true };
+      }
     }
     throw error;
   }
@@ -133,16 +207,21 @@ async function fetchFreshVideos(params: NormalizedSearchParams): Promise<Video[]
   const detailsPayload = videoListResponseSchema.parse(detailsResponse);
   const detailsById = new Map(detailsPayload.items.map((item) => [item.id, item]));
 
+  /**
+   * Devuelve los videos CRUDOS: los filtros del usuario (exclusiones y
+   * videoType) los aplica `searchVideos` con `applyUserFilters`, y así la
+   * caché de categoría puede servir cualquier combinación posterior.
+   */
   return searchPayload.items
     .map((item) => {
       const detail = detailsById.get(item.id.videoId);
-      const merged: VideoListItem = {
+      const mergedItem: VideoListItem = {
         id: item.id.videoId,
         snippet: item.snippet ?? detail?.snippet,
         contentDetails: detail?.contentDetails,
         statistics: detail?.statistics,
       };
-      return mapVideo(merged);
+      return mapVideo(mergedItem);
     })
     .filter((video) => video.durationSeconds > 0 || video.thumbnailUrl !== "");
 }

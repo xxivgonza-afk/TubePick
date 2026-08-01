@@ -20,7 +20,7 @@ describe("mapIntent", () => {
   it("conserva términos específicos de la categoría ('aprender react')", () => {
     const params = mapIntent({ ...base, q: "aprender react" });
     expect(params.category).toBe("programacion");
-    expect(params.keywords).toEqual(["aprender", "react"]);
+    expect(params.keywords).toEqual(["react"]);
   });
 
   it("mezcla palabras propias con el término disparador ('historias de terror de madrugada')", () => {
@@ -75,5 +75,89 @@ describe("mapIntent", () => {
 
   it("normaliza acentos y mayúsculas", () => {
     expect(normalizeText("  QuIeRo Ver CÓMO se HACE  ")).toBe("quiero ver como se hace");
+  });
+});
+
+describe("negaciones", () => {
+  it("excluye el término negado y mantiene la categoría del resto ('terror que no sea de fantasmas')", () => {
+    const params = mapIntent({ ...base, q: "quiero ver terror que no sea de fantasmas" });
+    expect(params.category).toBe("terror");
+    expect(params.keywords).toContain("terror");
+    expect(params.keywords).toContain("-fantasmas");
+  });
+
+  it("'sin' extrae los términos a excluir ('podcast sin cortes publicitarios')", () => {
+    const params = mapIntent({ ...base, q: "un podcast sin cortes publicitarios" });
+    expect(params.category).toBe("podcasts");
+    expect(params.keywords).toContain("-cortes");
+    expect(params.keywords).toContain("-publicitarios");
+  });
+
+  it("'no quiero nada de X' anula la categoría y excluye el término", () => {
+    const params = mapIntent({ ...base, q: "no quiero nada de terror" });
+    expect(params.category).toBeNull();
+    expect(params.keywords).toContain("-terror");
+  });
+
+  it("'excepto' captura el término excluido", () => {
+    const params = mapIntent({ ...base, q: "quiero ver futbol excepto los partidos de goles" });
+    expect(params.keywords).toContain("-goles");
+  });
+
+  it("'sin embargo' no genera exclusiones", () => {
+    const params = mapIntent({ ...base, q: "un podcast sin embargo interesante" });
+    expect(params.keywords.some((k) => k.startsWith("-"))).toBe(false);
+  });
+
+  it("'sin embargo' con contenido detrás no se traga la categoría ('un podcast sin embargo de terror')", () => {
+    const params = mapIntent({ ...base, q: "un podcast sin embargo de terror" });
+    expect(params.category).toBe("podcasts");
+    expect(params.keywords).toContain("terror");
+    expect(params.keywords.some((k) => k.startsWith("-"))).toBe(false);
+  });
+
+  it("'menos' comparativo no genera exclusiones ('videos de menos de 10 minutos')", () => {
+    const params = mapIntent({ ...base, q: "videos de menos de 10 minutos" });
+    expect(params.keywords.some((k) => k.startsWith("-"))).toBe(false);
+  });
+
+  it("una contraafirmación conserva su categoría ('no quiero deportes, quiero humor')", () => {
+    const params = mapIntent({ ...base, q: "no quiero deportes, quiero humor" });
+    expect(params.category).toBe("humor");
+    expect(params.keywords).toContain("humor");
+    expect(params.keywords).toContain("-deportes");
+    expect(params.keywords).not.toContain("-humor");
+  });
+});
+
+describe("puntuación de categorías", () => {
+  it("'documental de historia' prioriza la señal más específica y conserva la otra", () => {
+    const params = mapIntent({ ...base, q: "un documental de historia" });
+    expect(params.category).toBe("documentales");
+    expect(params.keywords).toContain("documental");
+    expect(params.keywords).toContain("historia");
+    expect(params.duration).toBe("long");
+  });
+
+  it("'cancion de terror' va a música y conserva ambos términos", () => {
+    const params = mapIntent({ ...base, q: "una cancion de terror" });
+    expect(params.category).toBe("musica");
+    expect(params.keywords).toContain("cancion");
+    expect(params.keywords).toContain("terror");
+  });
+
+  it("'podcast de inteligencia artificial' gana tecnología por especificidad del término", () => {
+    const params = mapIntent({ ...base, q: "un podcast de inteligencia artificial" });
+    expect(params.category).toBe("tecnologia");
+  });
+});
+
+describe("seeds de descubrimiento", () => {
+  it("usa seeds de descubrimiento mejorados sin query propia", () => {
+    expect(mapIntent({ ...base, category: "economia" }).keywords).toEqual(["finanzas personales"]);
+    expect(mapIntent({ ...base, category: "musica" }).keywords).toEqual(["musica relajante"]);
+    expect(mapIntent({ ...base, category: "programacion" }).keywords).toEqual([
+      "programacion para principiantes",
+    ]);
   });
 });

@@ -9,6 +9,10 @@ export type LanguageFilter = (typeof LANGUAGE_FILTERS)[number];
 export const DATE_FILTERS = ["week", "month", "year"] as const;
 export type DateFilter = (typeof DATE_FILTERS)[number];
 
+/** Tipo de contenido: la API no distingue shorts, se filtran post-captura. */
+export const VIDEO_TYPE_FILTERS = ["all", "video", "short"] as const;
+export type VideoTypeFilter = (typeof VIDEO_TYPE_FILTERS)[number];
+
 /** Los valores de orden que expone la UI; el API usa relevance | viewCount | date. */
 export const ORDER_FILTERS = ["relevance", "views", "newest"] as const;
 export type OrderFilter = (typeof ORDER_FILTERS)[number];
@@ -43,6 +47,12 @@ export const ORDER_OPTIONS: FilterOption<OrderFilter>[] = [
   { value: "newest", label: "Más recientes" },
 ];
 
+export const VIDEO_TYPE_OPTIONS: FilterOption<VideoTypeFilter>[] = [
+  { value: "all", label: "Todos" },
+  { value: "video", label: "Videos" },
+  { value: "short", label: "Shorts" },
+];
+
 /** Opciones del filtro de categoría, derivadas de la misma fuente que los chips del home. */
 export const CATEGORY_FILTERS: FilterOption<CategoryId>[] = CATEGORIES.map((category) => ({
   value: category.id,
@@ -50,4 +60,4 @@ export const CATEGORY_FILTERS: FilterOption<CategoryId>[] = CATEGORIES.map((cate
   emoji: category.emoji,
 }));
 
-export type AnyFilter = DurationFilter | LanguageFilter | DateFilter | OrderFilter | CategoryId;
+export type AnyFilter = DurationFilter | LanguageFilter | DateFilter | OrderFilter | CategoryId | VideoTypeFilter;

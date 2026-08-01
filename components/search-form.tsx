@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { VIDEO_TYPE_OPTIONS } from "@/constants/filters";
 import { buildSearchUrl } from "@/features/search/params";
 import { buildSurpriseParams } from "@/features/search/surprise";
 import type { SearchFilters } from "@/types/search";
@@ -18,13 +20,14 @@ const DEFAULT_FILTERS: SearchFilters = { q: "", language: "both" };
 export function SearchForm({ placeholder }: SearchFormProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [videoType, setVideoType] = useState<SearchFilters["videoType"]>("all");
 
   function submit() {
-    router.push(buildSearchUrl({ ...DEFAULT_FILTERS, q: query }));
+    router.push(buildSearchUrl({ ...DEFAULT_FILTERS, q: query, videoType }));
   }
 
   function surpriseMe() {
-    const params = buildSurpriseParams({ ...DEFAULT_FILTERS, q: query });
+    const params = buildSurpriseParams({ ...DEFAULT_FILTERS, q: query, videoType });
     router.push(buildSearchUrl(params));
   }
 
@@ -62,6 +65,20 @@ export function SearchForm({ placeholder }: SearchFormProps) {
           </Button>
         </div>
       </form>
+      <div className="mt-3 flex items-center justify-center gap-2 sm:justify-start">
+        <Select
+          aria-label="Tipo de contenido"
+          value={videoType ?? "all"}
+          onChange={(event) => setVideoType(event.target.value as SearchFilters["videoType"])}
+          className="h-9"
+        >
+          {VIDEO_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      </div>
       <p id="search-hint" className="mt-3 text-center text-xs text-muted-foreground sm:text-left">
         Escríbelo con tus palabras: «quiero algo para comer», «un podcast para dormir», «aprender React»…
       </p>

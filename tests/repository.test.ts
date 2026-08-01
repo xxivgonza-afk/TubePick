@@ -126,4 +126,259 @@ describe("searchVideos (repository)", () => {
       "No se pudo contactar con YouTube."
     );
   });
+
+  it("filtra post-captura los videos que contienen términos excluidos (incl. plurales)", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            {
+              id: { videoId: "video-2" },
+              snippet: {
+                ...searchItems[0].snippet,
+                title: "Top 10 Fantasmas inquietantes",
+              },
+            },
+            {
+              id: { videoId: "video-3" },
+              snippet: {
+                ...searchItems[0].snippet,
+                title: "Fantasma Real molesta a este pequeño",
+              },
+            },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: {
+              ...searchItems[0].snippet,
+              title: "Top 10 Fantasmas inquietantes",
+            },
+            contentDetails: { duration: "PT3M" },
+            statistics: { viewCount: "99" },
+          },
+          {
+            id: "video-3",
+            snippet: {
+              ...searchItems[0].snippet,
+              title: "Fantasma Real molesta a este pequeño",
+            },
+            contentDetails: { duration: "PT1M" },
+            statistics: { viewCount: "10" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["terror", "-fantasmas"],
+      category: "terror",
+      order: "relevance",
+      maxResults: 24,
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+  });
+
+  it("filtra shorts por duración (videoType='video')", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            { id: { videoId: "video-2" }, snippet: searchItems[0].snippet },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: searchItems[0].snippet,
+            contentDetails: { duration: "PT45S" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["terror"],
+      category: "terror",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "video",
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+  });
+
+  it("con videoType='short' solo quedan los videos de <= 60 s", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            { id: { videoId: "video-2" }, snippet: searchItems[0].snippet },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: searchItems[0].snippet,
+            contentDetails: { duration: "PT45S" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["terror"],
+      category: "terror",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "short",
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-2");
+  });
+
+  it("no comparte caché entre videoType distintos (regresión)", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            { id: { videoId: "video-2" }, snippet: searchItems[0].snippet },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: searchItems[0].snippet,
+            contentDetails: { duration: "PT45S" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const base = {
+      keywords: ["terror"],
+      category: "terror" as const,
+      order: "relevance" as const,
+      maxResults: 24,
+    };
+
+    const shorts = await repository.searchVideos({ ...base, videoType: "short" });
+    expect(shorts.videos.map((v) => v.id)).toEqual(["video-2"]);
+
+    const longs = await repository.searchVideos({ ...base, videoType: "video" });
+    expect(longs.videos.map((v) => v.id)).toEqual(["video-1"]);
+  });
+
+  it("el fallback por cuota aplica el videoType pedido aunque cambie respecto al cacheado", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            { id: { videoId: "video-2" }, snippet: searchItems[0].snippet },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: searchItems[0].snippet,
+            contentDetails: { duration: "PT45S" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const base = {
+      keywords: ["terror"],
+      category: "terror" as const,
+      order: "relevance" as const,
+      maxResults: 24,
+    };
+
+    await repository.searchVideos({ ...base, videoType: "video" });
+
+    vi.mocked(callYouTubeApi).mockRejectedValue(
+      new YouTubeApiError("quota", "Se agotó la cuota diaria de la API de YouTube.")
+    );
+
+    const { videos, fromFallback } = await repository.searchVideos({ ...base, videoType: "short" });
+    expect(fromFallback).toBe(true);
+    expect(videos.map((v) => v.id)).toEqual(["video-2"]);
+  });
+
+  it("cuenta como short un video de <= 3 min con tag #shorts", async () => {
+    const mock = mockSuccessfulApi();
+    mock.mockImplementation(async ({ path }) => {
+      if (path === "search") {
+        return {
+          items: [
+            { id: { videoId: "video-1" }, snippet: searchItems[0].snippet },
+            {
+              id: { videoId: "video-2" },
+              snippet: { ...searchItems[0].snippet, description: "Mira este #shorts" },
+            },
+          ],
+        };
+      }
+      return {
+        items: [
+          videoItems[0],
+          {
+            id: "video-2",
+            snippet: { ...searchItems[0].snippet, description: "Mira este #shorts" },
+            contentDetails: { duration: "PT2M30S" },
+            statistics: { viewCount: "500" },
+          },
+        ],
+      };
+    });
+
+    const params: NormalizedSearchParams = {
+      keywords: ["terror"],
+      category: "terror",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "video",
+    };
+
+    const { videos } = await repository.searchVideos(params);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].id).toBe("video-1");
+  });
 });

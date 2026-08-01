@@ -12,6 +12,7 @@ import {
   DURATION_OPTIONS,
   LANGUAGE_OPTIONS,
   ORDER_OPTIONS,
+  VIDEO_TYPE_OPTIONS,
 } from "@/constants/filters";
 import { buildSearchUrl, parseSearchFilters } from "@/features/search/params";
 import { buildSurpriseParams } from "@/features/search/surprise";
@@ -136,6 +137,20 @@ export function FilterBar() {
         >
           <option value="">Cualquier fecha</option>
           {DATE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+
+        <Select
+          aria-label="Tipo de contenido"
+          value={filters.videoType ?? "all"}
+          onChange={(event) =>
+            update({ videoType: event.target.value as SearchFilters["videoType"] })
+          }
+        >
+          {VIDEO_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

@@ -32,7 +32,7 @@ export const CATEGORIES: Category[] = [
     id: "tecnologia",
     label: "Tecnología",
     emoji: "🖥️",
-    seed: ["tecnología"],
+    seed: ["lo ultimo en tecnologia"],
     intent: [
       "tecnologia",
       "gadgets",
@@ -53,7 +53,7 @@ export const CATEGORIES: Category[] = [
     id: "ciencia",
     label: "Ciencia",
     emoji: "🔬",
-    seed: ["ciencia"],
+    seed: ["datos curiosos de ciencia"],
     intent: [
       "ciencia",
       "cientifico",
@@ -71,7 +71,7 @@ export const CATEGORIES: Category[] = [
     id: "historia",
     label: "Historia",
     emoji: "🏛️",
-    seed: ["historia"],
+    seed: ["datos curiosos de historia"],
     intent: [
       "historia",
       "historico",
@@ -91,7 +91,7 @@ export const CATEGORIES: Category[] = [
     id: "programacion",
     label: "Programación",
     emoji: "💻",
-    seed: ["programación"],
+    seed: ["programacion para principiantes"],
     intent: [
       "programacion",
       "programar",
@@ -114,7 +114,7 @@ export const CATEGORIES: Category[] = [
     id: "humor",
     label: "Humor",
     emoji: "😂",
-    seed: ["comedia"],
+    seed: ["videos graciosos"],
     intent: [
       "humor",
       "comedia",
@@ -165,7 +165,7 @@ export const CATEGORIES: Category[] = [
     id: "economia",
     label: "Economía",
     emoji: "📈",
-    seed: ["economía"],
+    seed: ["finanzas personales"],
     intent: [
       "economia",
       "finanzas",
@@ -183,7 +183,7 @@ export const CATEGORIES: Category[] = [
     id: "gaming",
     label: "Gaming",
     emoji: "🎮",
-    seed: ["gaming"],
+    seed: ["gameplay"],
     intent: [
       "gaming",
       "videojuego",
@@ -204,7 +204,7 @@ export const CATEGORIES: Category[] = [
     id: "musica",
     label: "Música",
     emoji: "🎵",
-    seed: ["música"],
+    seed: ["musica relajante"],
     intent: [
       "musica",
       "canciones",
@@ -251,7 +251,7 @@ export const CATEGORIES: Category[] = [
     id: "deportes",
     label: "Deportes",
     emoji: "⚽",
-    seed: ["deportes"],
+    seed: ["mejores jugadas"],
     intent: [
       "deportes",
       "deporte",
