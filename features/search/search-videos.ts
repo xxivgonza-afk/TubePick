@@ -158,7 +158,12 @@ export function toNormalizedParams(
     language,
     publishedAfter: publishedAfterFromFilters(filters),
     order,
-    maxResults: 24,
+    // Con post-filtro (shorts o rango exacto) la API no puede filtrar por
+    // duración: pido más resultados para que el filtro tenga candidatos.
+    maxResults:
+      filters.videoType === "short" || Boolean(durationMinSeconds || durationMaxSeconds)
+        ? 50
+        : 24,
     videoType: filters.videoType,
   };
 

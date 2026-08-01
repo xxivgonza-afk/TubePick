@@ -322,9 +322,15 @@ async function fetchFreshVideos(params: NormalizedSearchParams): Promise<Video[]
       maxResults: params.maxResults,
       order: params.order,
       // Los buckets de la API no aplican con rango exacto, ni para en vivo
-      // (los directos duran horas; exigirles "corto" vacía los resultados).
+      // (los directos duran horas; exigirles "corto" vacía los resultados),
+      // ni para shorts (≤60s, el post-filtro ya los recorta): el bucket
+      // inferido por la IA (p.ej. "medium") vaciaría la búsqueda.
       videoDuration:
-        hasCustomRange || params.videoType === "live" ? undefined : params.duration,
+        hasCustomRange ||
+        params.videoType === "live" ||
+        params.videoType === "short"
+          ? undefined
+          : params.duration,
       eventType: params.videoType === "live" ? "live" : undefined,
       videoCategoryId: params.videoCategoryId,
       relevanceLanguage: params.language,

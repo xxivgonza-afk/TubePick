@@ -83,7 +83,7 @@ describe("resolveIntent (capa semántica con Gemini)", () => {
     expect(sdkMock.generateContent).toHaveBeenCalledTimes(1);
     expect(sdkMock.generateContent).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ timeout: 1500 })
+      expect.objectContaining({ timeout: 4000 })
     );
     expect(sdkMock.modelParamsRef.current).toMatchObject({
       model: "gemini-3.5-flash-lite",

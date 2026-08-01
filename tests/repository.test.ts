@@ -553,6 +553,20 @@ describe("searchVideos (repository)", () => {
     expect(searchCall?.[0].params.eventType).toBe("live");
   });
 
+  it("no envía videoDuration cuando videoType='short' (el bucket inferido vaciaría los shorts)", async () => {
+    await repository.searchVideos({
+      keywords: ["cocina recetas"],
+      category: "comida",
+      duration: "medium",
+      order: "relevance",
+      maxResults: 24,
+      videoType: "short",
+    });
+    const searchCall = vi.mocked(callYouTubeApi).mock.calls.find(([options]) => options.path === "search");
+    expect(searchCall?.[0].params.videoDuration).toBeUndefined();
+    expect(searchCall?.[0].params.eventType).toBeUndefined();
+  });
+
   it("si la categoría de YouTube vacía los resultados, relaja soltándola", async () => {
     const mock = mockSuccessfulApi();
     mock.mockImplementation(async ({ path, params }) => {

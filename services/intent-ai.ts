@@ -45,8 +45,17 @@ import type { ConsumptionMode, ResolvedIntent } from "@/types/intent";
  * con la API el 2026-07-31.)
  */
 const MODEL = "gemini-3.5-flash-lite";
-/** Presupuesto de latencia: por encima, mejor reglas que esperar. */
-const TIMEOUT_MS = 1_500;
+/**
+ * Presupuesto de latencia para búsquedas normales: por encima, mejor reglas
+ * que esperar. El tier gratuito es lento e impredecible (2-16 s): con 4 s
+ * se captura una buena parte de las respuestas y el resto degrada rápido.
+ */
+const TIMEOUT_MS = 4_000;
+/**
+ * Presupuesto completo para la sorpresa (noCache): es la función estrella y
+ * no hay caché que absorba la espera, así que merece latencia completa.
+ */
+const SURPRISE_TIMEOUT_MS = 15_000;
 /** La intención cambia poco: cachear 30 días ahorra llamadas y cuota. */
 const INTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -239,7 +248,7 @@ export async function resolveIntent(
           },
         ],
       },
-      { timeout: TIMEOUT_MS }
+      { timeout: constraints.noCache ? SURPRISE_TIMEOUT_MS : TIMEOUT_MS }
     );
 
     const text = result.response.text();
