@@ -83,6 +83,8 @@ npx tsc --noEmit   # typecheck
 - [ ] `YOUTUBE_API_KEY` en Vercel como variable de entorno, usando una clave **nueva y restringida** (restricción de API a YouTube Data API v3 y, si es posible, de referrer HTTP al dominio) — nunca la que se compartió en `.env.local`.
 - [ ] `GEMINI_API_KEY` en Vercel como variable de entorno, también **nueva** (AI Studio → Create API key) por la misma razón.
 - [ ] `npm run lint`, `npx tsc --noEmit` y `npm test` en verde.
+- [ ] Completar `OPERATOR_NAME` en `constants/site.ts` con el nombre real del operador (persona física o empresa) antes del lanzamiento; revisar `JURISDICTION` y la fecha `LEGAL_LAST_UPDATED`. Si el operador es una empresa, añadir NIF/CIF en `app/legal/page.tsx`.
+- [ ] Verificar las 4 páginas legales en el dominio real: `/terms`, `/privacy`, `/cookies`, `/legal` (visible en el footer).
 - [ ] Tras el primer despliegue, revisar los logs de Vercel (sin `403 quotaExceeded`) y probar una búsqueda real + un Sorpréndeme desde el dominio.
 
 ## Roadmap

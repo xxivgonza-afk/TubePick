@@ -1,6 +1,14 @@
 import { Heart } from "lucide-react";
+import Link from "next/link";
 import { SITE_NAME } from "@/constants/site";
 import { KO_FI_URL } from "@/constants/site";
+
+const LEGAL_LINKS = [
+  { href: "/terms", label: "Términos de uso" },
+  { href: "/privacy", label: "Privacidad" },
+  { href: "/cookies", label: "Cookies" },
+  { href: "/legal", label: "Aviso legal" },
+];
 
 export function Footer() {
   return (
@@ -27,6 +35,17 @@ export function Footer() {
           (90 días) resume esos intereses para personalizar el botón Sorpréndeme.
         </p>
         <p>No afiliado a YouTube. Los videos se abren siempre en YouTube.</p>
+        <nav aria-label="Enlaces legales" className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          {LEGAL_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-foreground/80 underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </footer>
   );

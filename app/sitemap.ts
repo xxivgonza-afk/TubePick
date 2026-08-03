@@ -15,5 +15,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.8,
     },
+    { url: `${SITE_URL}/terms`, priority: 0.3 },
+    { url: `${SITE_URL}/privacy`, priority: 0.3 },
+    { url: `${SITE_URL}/cookies`, priority: 0.3 },
+    { url: `${SITE_URL}/legal`, priority: 0.3 },
   ];
 }
