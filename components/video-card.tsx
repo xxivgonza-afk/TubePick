@@ -1,18 +1,14 @@
-"use client";
-
 import Image from "next/image";
-import { Bookmark, ExternalLink, Play } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ExternalLink, Play } from "lucide-react";
+import { FavoriteButton } from "@/components/favorite-button";
 import { formatDuration, formatRelativeDate, formatViews } from "@/utils/format";
 import { toYouTubeUrl, type Video } from "@/types/video";
 
 interface VideoCardProps {
   video: Video;
-  isFavorite: boolean;
-  onToggleFavorite: (video: Video) => void;
 }
 
-export function VideoCard({ video, isFavorite, onToggleFavorite }: VideoCardProps) {
+export function VideoCard({ video }: VideoCardProps) {
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-colors hover:border-foreground/20">
       <a
@@ -72,17 +68,7 @@ export function VideoCard({ video, isFavorite, onToggleFavorite }: VideoCardProp
             <ExternalLink className="size-3.5" aria-hidden="true" />
             Ver en YouTube
           </a>
-          <Button
-            variant={isFavorite ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => onToggleFavorite(video)}
-            aria-pressed={isFavorite}
-            aria-label={isFavorite ? `Quitar «${video.title}» de favoritos` : `Guardar «${video.title}» en favoritos`}
-            className="ml-auto"
-          >
-            <Bookmark className={`size-3.5 ${isFavorite ? "fill-current" : ""}`} aria-hidden="true" />
-            {isFavorite ? "Guardado" : "Guardar"}
-          </Button>
+          <FavoriteButton video={video} />
         </div>
       </div>
     </article>

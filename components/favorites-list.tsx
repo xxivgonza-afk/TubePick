@@ -8,17 +8,10 @@ import { useFavorites } from "@/hooks/use-favorites";
 import { useUIStore } from "@/stores/ui-store";
 
 export function FavoritesList() {
-  const { favorites, clearFavorites, isFavorite, toggleFavorite } = useFavorites();
+  const { favorites, clearFavorites } = useFavorites();
   const showToast = useUIStore((s) => s.showToast);
   const videos = Object.values(favorites);
   const hasFavorites = videos.length > 0;
-
-  function handleToggleFavorite(videoId: string) {
-    const video = favorites[videoId];
-    if (!video) return;
-    toggleFavorite(video);
-    showToast("Eliminado de favoritos");
-  }
 
   function handleClear() {
     clearFavorites();
@@ -64,11 +57,7 @@ export function FavoritesList() {
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {videos.map((video) => (
           <li key={video.id}>
-            <VideoCard
-              video={video}
-              isFavorite={isFavorite(video.id)}
-              onToggleFavorite={() => handleToggleFavorite(video.id)}
-            />
+            <VideoCard video={video} />
           </li>
         ))}
       </ul>
