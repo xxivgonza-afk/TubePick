@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { SITE_NAME, SITE_TAGLINE } from "@/constants/site";
 
-export const alt = `${SITE_NAME} — Qué ver en YouTube`;
+export const alt = `${SITE_NAME} — Qué ver en YouTube | Descubre videos con IA`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -59,6 +59,28 @@ export default function OpengraphImage() {
         >
           {SITE_TAGLINE}
         </span>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginTop: 32,
+          }}
+        >
+          {["Tecnología", "Ciencia", "Humor", "Podcasts", "Gaming"].map((cat) => (
+            <span
+              key={cat}
+              style={{
+                fontSize: 16,
+                color: "#ff5a3c",
+                border: "1px solid #ff5a3c40",
+                borderRadius: 999,
+                padding: "6px 16px",
+              }}
+            >
+              {cat}
+            </span>
+          ))}
+        </div>
       </div>
     ),
     { ...size }

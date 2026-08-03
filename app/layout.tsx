@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
@@ -7,7 +7,7 @@ import { CookieConsent } from "@/components/cookie-consent";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toast } from "@/components/toast";
 import { VisitTracker } from "@/components/visit-tracker";
-import { SITE_NAME, SITE_TAGLINE } from "@/constants/site";
+import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/constants/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -15,8 +15,17 @@ const inter = Inter({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_NAME} — Qué ver en YouTube`,
     template: `%s — ${SITE_NAME}`,
@@ -27,18 +36,58 @@ export const metadata: Metadata = {
     "qué ver en youtube",
     "videos recomendados",
     "descubrir videos",
+    "inteligencia artificial youtube",
+    "buscar videos con IA",
+    "encontrar videos interesantes",
+    "tube pick",
+    "tubepick",
   ],
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
   openGraph: {
     type: "website",
     locale: "es_ES",
+    url: SITE_URL,
     siteName: SITE_NAME,
     title: `${SITE_NAME} — Qué ver en YouTube`,
     description: SITE_TAGLINE,
+    images: [
+      {
+        url: `${SITE_URL}/opengraph-image`,
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} — Qué ver en YouTube`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} — Qué ver en YouTube`,
     description: SITE_TAGLINE,
+    images: [`${SITE_URL}/opengraph-image`],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: SITE_URL,
+    languages: {
+      "es": SITE_URL,
+    },
   },
 };
 

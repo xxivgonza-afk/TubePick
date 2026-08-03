@@ -5,11 +5,15 @@ import {
   KO_FI_URL,
   OPERATOR_NAME,
   SITE_NAME,
+  SITE_URL,
 } from "@/constants/site";
 
 export const metadata: Metadata = {
   title: "Aviso legal",
-  description: `Aviso legal e identificación del sitio ${SITE_NAME}.`,
+  description: `Aviso legal e identificación del sitio ${SITE_NAME}. Información del operador.`,
+  alternates: {
+    canonical: `${SITE_URL}/legal`,
+  },
 };
 
 export default function LegalNoticePage() {

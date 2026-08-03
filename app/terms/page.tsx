@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { LegalLink, LegalList, LegalPage, LegalSection } from "@/components/legal-page";
-import { JURISDICTION, KO_FI_URL, SITE_NAME } from "@/constants/site";
+import { JURISDICTION, KO_FI_URL, SITE_NAME, SITE_URL } from "@/constants/site";
 
 export const metadata: Metadata = {
   title: "Términos de uso",
-  description: `Términos de uso del servicio ${SITE_NAME}.`,
+  description: `Términos de uso del servicio ${SITE_NAME}. Condiciones generales para usarTubePick.`,
+  alternates: {
+    canonical: `${SITE_URL}/terms`,
+  },
 };
 
 export default function TermsPage() {

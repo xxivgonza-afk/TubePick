@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { LegalLink, LegalList, LegalPage, LegalSection } from "@/components/legal-page";
-import { USER_CONTEXT_COOKIE, SITE_NAME } from "@/constants/site";
+import { USER_CONTEXT_COOKIE, SITE_NAME, SITE_URL } from "@/constants/site";
 
 export const metadata: Metadata = {
   title: "Política de cookies",
-  description: `Qué cookies usa ${SITE_NAME} y cómo gestionarlas.`,
+  description: `Qué cookies usa ${SITE_NAME} y cómo gestionarlas. Solo una cookie propia, sin trackers.`,
+  alternates: {
+    canonical: `${SITE_URL}/cookies`,
+  },
 };
 
 export default function CookiesPage() {

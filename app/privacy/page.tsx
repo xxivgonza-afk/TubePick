@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { LegalLink, LegalList, LegalPage, LegalSection } from "@/components/legal-page";
-import { JURISDICTION, KO_FI_URL, OPERATOR_NAME, SITE_NAME } from "@/constants/site";
+import { JURISDICTION, KO_FI_URL, OPERATOR_NAME, SITE_NAME, SITE_URL } from "@/constants/site";
 
 export const metadata: Metadata = {
   title: "Política de privacidad",
-  description: `Cómo trata ${SITE_NAME} tus datos: qué guarda, qué envía y cómo borrarlo.`,
+  description: `Cómo trata ${SITE_NAME} tus datos: qué guarda, qué envía y cómo borrarlo. Sin cuentas, sin rastro.`,
+  alternates: {
+    canonical: `${SITE_URL}/privacy`,
+  },
 };
 
 export default function PrivacyPage() {

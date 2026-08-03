@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { SITE_NAME } from "@/constants/site";
+
+export const metadata: Metadata = {
+  title: "404 — Página no encontrada",
+  description: `Lo sentimos, esta página no existe. Vuelve a ${SITE_NAME} y descubre qué ver en YouTube.`,
+  robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
   return (

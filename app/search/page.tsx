@@ -19,7 +19,12 @@ export async function generateMetadata({ searchParams }: SearchPageProps): Promi
   return {
     title,
     description: `Resultados recomendados para «${title}»${category ? ` en ${category.label}` : ""}. Videos de YouTube seleccionados para ti por TubePick.`,
+    robots: { index: false, follow: true },
     openGraph: {
+      title,
+      description: `Resultados recomendados para «${title}». Videos de YouTube seleccionados para ti por TubePick.`,
+    },
+    twitter: {
       title,
       description: `Resultados recomendados para «${title}». Videos de YouTube seleccionados para ti por TubePick.`,
     },
