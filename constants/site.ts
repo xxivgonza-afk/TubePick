@@ -11,7 +11,7 @@ export const KO_FI_URL = "https://ko-fi.com/jeremysosa";
  * (persona física o empresa) antes del lanzamiento si quieres identificarlo
  * explícitamente en el aviso legal.
  */
-export const OPERATOR_NAME = "TubePick (proyecto personal de su autor)";
+export const OPERATOR_NAME = "JeremySosa";
 export const OPERATOR_CONTACT = `Mensaje privado a través de Ko-fi (${KO_FI_URL})`;
 export const JURISDICTION = "España";
 export const LEGAL_LAST_UPDATED = "1 de agosto de 2026";
