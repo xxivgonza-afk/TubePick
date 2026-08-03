@@ -84,7 +84,27 @@ export function Footer() {
             Tus favoritos e intereses se guardan solo en tu navegador. La única cookie de TubePick
             (90 días) resume esos intereses para personalizar el botón Sorpréndeme.
           </p>
-          <p className="mt-1">No afiliado a YouTube. Los videos se abren siempre en YouTube.</p>
+          <p className="mt-1">
+            No afiliado a YouTube. Los videos se abren siempre en YouTube. Este producto usa la{" "}
+            <a
+              href="https://developers.google.com/youtube/terms/api-services-terms-of-service"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/80 underline underline-offset-2 hover:text-foreground"
+            >
+              YouTube API Services
+            </a>
+            . Ver política de privacidad de{" "}
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/80 underline underline-offset-2 hover:text-foreground"
+            >
+              Google
+            </a>
+            .
+          </p>
         </div>
       </div>
     </footer>
