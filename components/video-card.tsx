@@ -35,7 +35,10 @@ export function VideoCard({ video }: VideoCardProps) {
           </div>
         )}
         {video.durationSeconds > 0 && (
-          <span className="absolute bottom-2 right-2 rounded-md bg-black/80 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white">
+          <span
+            aria-hidden="true"
+            className="absolute bottom-2 right-2 rounded-md bg-black/80 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white"
+          >
             {formatDuration(video.durationSeconds)}
           </span>
         )}
